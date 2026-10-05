@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IMCA-501P Project Submission Portal</title>
+<style>
+:root{--b:#365F91;--l:#D9EAF7;--g:#EDEDED;--ink:#1c2733;--bad:#B3261E;--ok:#1E7B4B}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 "Segoe UI",system-ui,Arial,sans-serif;color:var(--ink);background:#f4f6f9}
+header{background:var(--b);color:#fff;text-align:center;padding:14px 10px}
+header h1{font-size:19px;margin:0}header p{margin:2px 0 0;font-size:13px}
+nav{display:flex;gap:6px;justify-content:center;padding:10px;background:#fff;border-bottom:1px solid #cfd6df}
+nav button{border:1px solid var(--b);background:#fff;color:var(--b);padding:8px 16px;border-radius:6px;font:inherit;cursor:pointer}
+nav button.on{background:var(--b);color:#fff}
+main{max-width:1000px;margin:auto;padding:12px}
+section{background:#fff;border:1px solid #cfd6df;border-radius:8px;padding:14px;margin:12px 0}
+h2{color:var(--b);font-size:17px;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}
+input,select,textarea{width:100%;padding:8px;border:1px solid #8b98a9;border-radius:6px;font:inherit;background:#fff}
+:focus-visible{outline:3px solid #f0b400;outline-offset:1px}
+.bad{border-color:var(--bad)!important;background:#fdf0ee}
+small{color:#586779;display:block}
+.st{font-size:13px;margin-top:3px}.st.ok{color:var(--ok)}.st.no{color:var(--bad)}
+button.p{background:var(--b);color:#fff;border:0;border-radius:6px;padding:10px 18px;font:inherit;cursor:pointer}
+button.s{background:#fff;color:var(--b);border:1px solid var(--b);border-radius:6px;padding:7px 12px;font:inherit;cursor:pointer}
+.bar{position:sticky;bottom:0;background:#fff;border-top:2px solid var(--b);padding:10px 12px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.note{background:var(--l);border-left:4px solid var(--b);padding:8px 10px;border-radius:4px;font-size:13px}
+.errs{background:#fdf0ee;border:1px solid var(--bad);border-radius:6px;padding:8px 12px;margin:10px 0}
+.errs a{color:var(--bad);cursor:pointer;text-decoration:underline}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{background:var(--l);text-align:left}th,td{border:1px solid #b9c3cf;padding:5px 6px;vertical-align:top}
+.badge{padding:1px 8px;border-radius:10px;font-size:12px;color:#fff;background:var(--ok)}.badge.w{background:var(--bad)}
+.rc{border:2px solid var(--b);padding:14px;border-radius:8px}
+.rc dt{font-weight:600;float:left;clear:left;width:150px}.rc dd{margin:0 0 4px 160px}
+[hidden]{display:none!important}
+@media print{header,nav,.noprint,#form{display:none!important}body{background:#fff}section{border:0}}
+</style></head><body>
+<header><h1>LOK JAGRUTI KENDRA UNIVERSITY</h1><p>IMCA-501P UI-UX Design with AI &ndash; Final Project Submission &ndash; 2026&ndash;27</p></header>
+<nav><button id="tS" class="on">Student submission</button><button id="tF">Faculty dashboard</button></nav>
+
+<main id="student">
+<div id="form"></div>
+<div id="done" hidden></div>
+</main>
+
+<main id="faculty" hidden>
+<section><h2>Submissions &ndash; live from Google Sheet</h2>
+<p class="note">Submissions appear here automatically as students submit. Marks you enter are kept only in this browser, so export the CSV before clearing or switching devices.</p>
+<div class="grid">
+<div><label for="fdiv">Division</label><select id="fdiv"></select></div>
+<div><label for="fq">Search name / roll</label><input id="fq"></div>
+<div style="display:flex;align-items:flex-end"><label class="chk" style="margin:0"><input type="checkbox" id="fflag"><span>Show only flagged (shared links)</span></label></div>
+</div>
+<div id="fsum" class="st"></div><div id="fnotes" class="st no"></div>
+<p><button class="p" id="refresh">Refresh now</button> <button class="s" id="csv">Export marks (CSV)</button> <button class="s" id="pub">Publish results (encrypted results.json)</button> <button class="s" id="clr">Clear marks (this browser)</button></p>
+<p id="pubmsg" class="st"></p>
+</section>
+<section><h2>Submissions &ndash; rubric (each /2.5, total /10)</h2><p class="note">Open each student's links before scoring &ndash; the rubric only makes sense after you've actually reviewed the work.</p><div class="tw"><table><thead><tr><th>Roll</th><th>Name</th><th>Div</th><th>Project</th><th>Status</th><th>Research<br>/2.5</th><th>Visual<br>Design /2.5</th><th>Prototype<br>/2.5</th><th>Access.<br>/2.5</th><th>Total</th><th>Remarks</th><th></th></tr></thead><tbody id="fb"></tbody></table></div></section>
+</main>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const hash=s=>{let a=0xdeadbeef,b=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=Math.imul(a^c,2654435761);b=Math.imul(b^c,1597334677)}a=Math.imul(a^(a>>>16),2246822507);a^=Math.imul(b^(b>>>13),3266489909);b=Math.imul(b^(b>>>16),2246822507);b^=Math.imul(a^(a>>>13),3266489909);return(4294967296*(2097151&b)+(a>>>0)).toString(36).toUpperCase()};
+/* ===== ONE-TIME SETUP: paste your deployed Google Apps Script Web App URL below (ends in /exec) ===== */
+const API_URL="https://script.google.com/macros/s/AKfycbyWRPVqT-eug7x2tx_T9Nc92t55irNJnslcQaMlU50UPjUv8Q7q_Zf2o-TVfAU5zhsmAQ/exec";
+const API_READY=API_URL&&API_URL.startsWith("https://script.google.com/");
+if(!API_READY){const b=document.createElement("div");b.style.cssText="background:#B3261E;color:#fff;padding:10px 14px;text-align:center;font-weight:600";
+b.textContent="https://script.google.com/macros/s/AKfycbyWRPVqT-eug7x2tx_T9Nc92t55irNJnsIcQaMlU50UPjUv8Q7q_Zf2o-TVfAU5zhsmAQ/exec";
+document.body.prepend(b);}
+const DIVS=["A","B","C","D","E","F","G","H"];
+const PROJ=["Set 01 - KalaBazaar","Set 02 - MindCheck","Set 03 - KisanMitra","Set 04 - GreenSort","Set 05 - StudySync","Other (approved separately by faculty)"];
+const LINKS=[["miro","Miro board link","miro.com"],["penpot","Penpot wireframes link","penpot"],["figma","Figma design file link","figma.com"],["canva","Canva case-study link","canva.com"]];
+
+/* ---------- student form ---------- */
+const inp=(id,ph,t)=>`<input id="${id}" data-k="${id}" type="${t||"text"}" placeholder="${ph||""}" autocomplete="off">`;
+const fld=(id,lab,h,hint)=>`<div><label for="${id}">${lab}</label>${h}${hint?`<small>${hint}</small>`:""}</div>`;
+const opts=a=>`<option value="">Select</option>`+a.map(x=>`<option>${x}</option>`).join("");
+
+$("#form").innerHTML=`
+<section><h2>Before you start</h2><p class="note">Fill this page during the lecture. Your work is saved in this browser as you type, so a refresh will not lose it. At the end you get a <b>submission file</b> and a <b>receipt</b>; give both to your faculty.</p></section>
+<section><h2>1. Student details</h2><div class="grid">
+${fld("p_name","Full name",inp("p_name","As on university records"))}
+${fld("p_roll","Roll number",inp("p_roll","e.g. DIV-A-ROLLNO-01"))}
+${fld("p_div","Division",`<select id="p_div" data-k="p_div">${opts(DIVS)}</select>`)}
+${fld("p_fac","Faculty name",inp("p_fac"))}
+${fld("p_proj","Approved project set",`<select id="p_proj" data-k="p_proj">${opts(PROJ)}</select>`)}
+<div id="p_proj_other_wrap" hidden>${fld("p_proj_other","Topic Name (required since you selected Other)",inp("p_proj_other","Exact topic approved by your faculty"))}</div>
+</div></section>
+<section><h2>2. Tool links</h2><p class="note">Use full links starting with https://. Set access to "anyone with the link can view".</p><div class="grid">
+${LINKS.map(l=>fld("l_"+l[0],l[1],inp("l_"+l[0],"https://","url"))).join("")}</div></section>
+<section><h2>3. GitHub backup (optional, recommended)</h2>
+<p class="note">If you keep your project on GitHub, paste your <b>public</b> repository link and click Check. This is a backup verification only &ndash; it does not replace the links above, and it is <b>not required</b> to submit. Best done the night before from home Wi-Fi, not during the lecture.</p>
+<div class="grid">${fld("p_repo","GitHub repository link (optional)",inp("p_repo","https://github.com/username/imca501p-roll","url"))}</div>
+<p><button type="button" class="s" id="chkrepo">Check repository</button> <span id="repostatus" class="st"></span></p>
+<div id="repodetail"></div>
+</section>
+<section><h2>4. AI Prompt Log &amp; Declaration</h2>
+<p class="note">Record at least 3 rows showing how you used AI and what you changed. This is your honest record of AI use &ndash; there is no automatic way to "detect" AI-made work, so this log and the viva are what faculty rely on.</p>
+<div class="tw"><table><thead><tr><th>AI tool</th><th>Prompt</th><th>AI output</th><th>Your edit</th><th>Reason</th><th></th></tr></thead><tbody id="logb"></tbody></table></div>
+<p><button type="button" class="s" id="addrow">Add row</button></p>
+<div style="margin-top:10px">${fld("decl","AI usage declaration (brief)",`<textarea id="decl" data-k="decl"></textarea>`,"In a few sentences: which AI tools you used, for what, and what you changed yourself.")}</div>
+</section>
+<div id="errbox" class="errs" hidden></div>
+<div class="bar"><span id="left" class="st"></span><button class="p" id="submit" type="button">Submit project</button></div>`;
+
+function gather(){const d={};$$("#form [data-k]").forEach(e=>d[e.dataset.k]=e.type==="checkbox"?e.checked:e.value.trim());
+d.log=$$("#logb tr").map(r=>[...r.querySelectorAll("textarea")].map(t=>t.value.trim()));return d}
+function addRow(v){const tr=window.document.createElement("tr");v=v||[];
+tr.innerHTML=[0,1,2,3,4].map(i=>`<td><textarea aria-label="Prompt log column ${i+1}">${esc(v[i]||"")}</textarea></td>`).join("")+`<td><button type="button" class="s">Remove</button></td>`;
+tr.querySelector("button").onclick=()=>{tr.remove();save()};$("#logb").appendChild(tr)}
+$("#addrow").onclick=()=>{if($$("#logb tr").length>=20)return alert("Maximum 20 rows.");addRow();save()};
+const MINLOG=3;
+function parseRepo(url){const m=(url||"").trim().match(/^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+?)\/?$/i);return m?{owner:m[1],repo:m[2]}:null}
+let repoState=null;
+async function checkRepo(owner,repo){
+const base="https://api.github.com/repos/"+owner+"/"+repo,ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),9000);
+try{const[infoRes,commitRes,rootRes]=await Promise.all([fetch(base,{signal:ctl.signal}),fetch(base+"/commits?per_page=1",{signal:ctl.signal}),fetch(base+"/contents",{signal:ctl.signal})]);
+clearTimeout(to);
+if(infoRes.status===404)return{ok:false,reason:"Repository not found. Check the URL and that it is spelled exactly right."};
+if(infoRes.status===403)return{ok:false,reason:"GitHub's free request limit was reached (shared campus Wi-Fi hits this fast). Try again later, ideally from home."};
+if(!infoRes.ok)return{ok:false,reason:"GitHub returned an error (status "+infoRes.status+")."};
+const info=await infoRes.json();
+if(info.private)return{ok:false,reason:"This repository is private. Make it public so faculty can open it."};
+let sha=null,date=null;if(commitRes.ok){const c=await commitRes.json();if(c&&c[0]){sha=c[0].sha;date=c[0].commit&&c[0].commit.committer&&c[0].commit.committer.date}}
+let files=[],linksData=null;if(rootRes.ok){files=await rootRes.json();if(Array.isArray(files)){const lf=files.find(f=>f.name.toLowerCase()==="links.json");
+if(lf&&lf.download_url){try{const r=await fetch(lf.download_url);if(r.ok)linksData=await r.json()}catch(e){}}}}
+const names=Array.isArray(files)?files:[],has=n=>names.some(f=>f.name.toLowerCase()===n.toLowerCase()&&f.type==="file"),hasDir=n=>names.some(f=>f.name.toLowerCase()===n.toLowerCase()&&f.type==="dir");
+const required={"README.md":has("README.md"),"links.json":has("links.json"),"prompt-log.pdf":has("prompt-log.pdf"),"usability-test.pdf":has("usability-test.pdf"),"screens/":hasDir("screens"),"research/":hasDir("research")};
+return{ok:true,sha,date,required,linksData}}
+catch(e){clearTimeout(to);return{ok:false,reason:e.name==="AbortError"?"GitHub did not respond in time. Check your internet connection and try again.":"Could not reach GitHub. Check your internet connection and try again."}}}
+function drawRepo(){const s=$("#repostatus"),d=$("#repodetail");if(!repoState){s.className="st";s.textContent="";d.innerHTML="";return}
+if(!repoState.ok){s.className="st no";s.textContent="Not verified: "+repoState.reason;d.innerHTML="";return}
+s.className="st ok";s.textContent="Verified at commit "+repoState.sha.slice(0,7)+(repoState.date?" ("+new Date(repoState.date).toLocaleString()+")":"");
+const req=repoState.required,rows=Object.entries(req).map(([k,v])=>`<li>${v?"\u2705":"\u26a0\ufe0f"} ${esc(k)}${v?"":" not found"}</li>`).join("");
+let cmp="";if(repoState.linksData){cmp="<p><b>links.json vs the fields above:</b></p><ul>"+LINKS.map(l=>{const a=($("#l_"+l[0])||{}).value||"",b=repoState.linksData[l[0]]||"";const same=a&&b&&a.trim()===b.trim();return`<li>${esc(l[1])}: ${same?"\u2705 matches":"\u26a0\ufe0f "+(b?"differs from links.json":"not set in links.json")}</li>`}).join("")+"</ul>"}
+d.innerHTML=`<div class="note">${rows?"<ul style='margin:4px 0 0 18px;padding:0'>"+rows+"</ul>":""}${cmp}</div>`}
+$("#chkrepo").onclick=async()=>{const v=$("#p_repo").value.trim();if(!v){alert("Paste your GitHub repository link first.");return}
+const parsed=parseRepo(v);if(!parsed){$("#p_repo").classList.add("bad");repoState={ok:false,reason:"Link must look like https://github.com/username/repo-name"};drawRepo();return}
+$("#p_repo").classList.remove("bad");$("#repostatus").textContent="Checking...";$("#repostatus").className="st";
+const r=await checkRepo(parsed.owner,parsed.repo);repoState=Object.assign({owner:parsed.owner,repo:parsed.repo,checkedAt:new Date().toISOString()},r);
+ls.set("ljku_repostate",JSON.stringify(repoState));drawRepo();save()};
+function okUrl(v,dom){try{const u=new URL(v);if(u.protocol!=="https:")return false;const h=u.hostname.toLowerCase();if(dom.includes("."))return h===dom||h.endsWith("."+dom);return h.includes(dom)}catch(e){return false}}
+function validate(d){const E=[],a=(id,m)=>E.push([id,m]);
+if(d.p_repo&&!parseRepo(d.p_repo))a("p_repo","GitHub link must look like https://github.com/username/repo-name (or leave it blank).");
+if(!d.p_name||d.p_name.length<3)a("p_name","Enter your full name.");
+if(!/^DIV-[A-H]-ROLLNO-\d{1,3}$/i.test(d.p_roll||""))a("p_roll","Enter roll number in the format DIV-A-ROLLNO-01 (division letter A-H, then your number).");
+if(!d.p_div)a("p_div","Select your division.");
+if(!d.p_fac||d.p_fac.length<3)a("p_fac","Enter your faculty name.");
+if(!d.p_proj)a("p_proj","Select your approved project set.");
+if(d.p_proj&&d.p_proj.startsWith("Other")&&(!d.p_proj_other||d.p_proj_other.length<4))a("p_proj_other","Enter the Topic Name your faculty approved.");
+LINKS.forEach(l=>{const v=d["l_"+l[0]];if(!v)a("l_"+l[0],l[1]+" is required.");else if(!okUrl(v,l[2]))a("l_"+l[0],l[1]+" must be a valid https link containing "+l[2]+".")});
+let full=0;(d.log||[]).forEach((r,i)=>{const f=r.filter(x=>x.length>=3).length;if(f===5)full++;else if(r.some(x=>x))a("logb","Prompt Log row "+(i+1)+" is incomplete (each column needs 3+ characters).")});
+if(full<MINLOG)a("logb","Prompt Log needs at least "+MINLOG+" complete rows (you have "+full+").");
+if((d.decl||"").length<30)a("decl","AI usage declaration must be at least 30 characters.");
+return E}
+function refresh(){const n=validate(gather()).length;$("#left").textContent=n?n+" item(s) still to fix":"All checks passed. Ready to submit."}
+
+let tm;function save(){clearTimeout(tm);tm=setTimeout(()=>{ls.set("ljku_draft",JSON.stringify(gather()));refresh()},400)}
+function restore(){const r=ls.get("ljku_draft");let d=null;try{d=r&&JSON.parse(r)}catch(e){}
+if(d){$$("#form [data-k]").forEach(e=>{if(d[e.dataset.k]==null)return;if(e.type==="checkbox")e.checked=!!d[e.dataset.k];else e.value=d[e.dataset.k]});
+(Array.isArray(d.log)?d.log:[]).slice(0,20).forEach(addRow)}
+while($$("#logb tr").length<MINLOG)addRow();
+try{const rs=ls.get("ljku_repostate");if(rs)repoState=JSON.parse(rs)}catch(e){}
+toggleOther();drawRepo();refresh()}
+$("#form").addEventListener("input",save);$("#form").addEventListener("change",save);
+function toggleOther(){$("#p_proj_other_wrap").hidden=!($("#p_proj").value||"").startsWith("Other")}
+$("#p_proj").addEventListener("change",toggleOther);
+
+$("#submit").onclick=async()=>{
+if(!API_READY){alert("This portal is not configured yet. Faculty needs to paste the Apps Script URL into API_URL before students can submit.");return}
+toggleOther();const d=gather(),E=validate(d),box=$("#errbox");
+if(E.length){box.hidden=false;box.innerHTML="<b>Fix these before submitting:</b><ul>"+E.map(e=>`<li><a data-id="${e[0]}">${esc(e[1])}</a></li>`).join("")+"</ul>";
+$$("#form .bad").forEach(x=>x.classList.remove("bad"));E.forEach(e=>{const x=document.getElementById(e[0]);if(x)x.classList.add("bad")});
+box.scrollIntoView({behavior:"smooth",block:"center"});return}
+box.hidden=true;
+const btn=$("#submit");btn.disabled=true;const oldLabel=btn.textContent;btn.textContent="Submitting...";
+const body={v:1,submittedAt:new Date().toISOString(),
+profile:{name:d.p_name,roll:d.p_roll.toUpperCase(),div:d.p_div,faculty:d.p_fac,project:d.p_proj.startsWith("Other")?("Other: "+d.p_proj_other):d.p_proj},
+links:Object.fromEntries(LINKS.map(l=>[l[0],d["l_"+l[0]]])),
+log:(d.log||[]).filter(r=>r.every(x=>x.length>=3)),declaration:d.decl,
+repoCheck:(d.p_repo&&repoState)?Object.assign({repoUrl:d.p_repo},repoState):null};
+const sub=Object.assign({},body,{hash:hash(JSON.stringify(body))});
+let result;
+try{
+const res=await fetch(API_URL,{method:"POST",body:JSON.stringify(sub)});
+result=await res.json();
+if(!result||!result.ok)throw new Error((result&&result.error)||"Server rejected the submission.");
+}catch(err){
+btn.disabled=false;btn.textContent=oldLabel;
+box.hidden=false;box.innerHTML="<b>Could not submit:</b> "+esc(err.message||String(err))+". Nothing is lost &ndash; your answers are still saved in this browser. Check your internet connection and click Submit again.";
+box.scrollIntoView({behavior:"smooth",block:"center"});return}
+ls.del("ljku_draft");
+const p=body.profile;
+$("#done").innerHTML=`<section class="rc"><h2>Submission received</h2><dl>
+<dt>Name</dt><dd>${esc(p.name)}</dd><dt>Roll / Division</dt><dd>${esc(p.roll)} / ${esc(p.div)}</dd><dt>Project</dt><dd>${esc(p.project)}</dd>
+<dt>Submitted at</dt><dd>${esc(new Date(body.submittedAt).toLocaleString())}</dd>
+<dt>Submission check</dt><dd>\u2705 All required fields and links were present and correctly formatted. This only confirms the form was filled in properly &ndash; it is <u>not</u> a mark and does not reflect the quality of your actual design work.</dd>
+<dt>GitHub backup</dt><dd>${body.repoCheck?(body.repoCheck.ok?"Verified at commit "+esc(body.repoCheck.sha.slice(0,7)):"Not verified &ndash; "+esc(body.repoCheck.reason)):"Not provided"}</dd>
+<dt>Receipt code</dt><dd><b>${esc(sub.hash)}</b></dd></dl>
+<p class="note noprint">Your submission went straight to your faculty's dashboard &ndash; nothing to download or hand in. Keep your <b>Roll Number</b> and this <b>Receipt code</b> safe, you will need both together to look up your final marks later on the Results page.</p>
+<p class="noprint"><button class="s" id="pr">Print receipt</button> <button class="s" id="ed">Edit and resubmit</button></p></section>`;
+$("#form").hidden=true;$("#done").hidden=false;window.scrollTo(0,0);
+$("#pr").onclick=()=>window.print();
+$("#ed").onclick=()=>{$("#done").hidden=true;$("#form").hidden=false;window.scrollTo(0,0)};
+};
+$("#errbox").addEventListener("click",e=>{const id=e.target.dataset&&e.target.dataset.id;if(!id)return;const x=document.getElementById(id);if(x){x.scrollIntoView({behavior:"smooth",block:"center"});if(x.focus)x.focus()}});
+
+/* ---------- faculty dashboard ---------- */
+let R={},notes=[],M={};try{M=JSON.parse(ls.get("ljku_marks")||"{}")}catch(e){M={}}
+$("#fdiv").innerHTML=`<option value="">All divisions</option>`+DIVS.map(x=>`<option>${x}</option>`).join("");
+function safeUrl(u){try{const x=new URL(u);return x.protocol==="https:"?x.href:""}catch(e){return ""}}
+let loading=false;
+async function loadLive(){
+if(!API_READY){notes=["Portal not configured: set API_URL first."];drawF();return}
+if(loading)return;loading=true;
+const btn=$("#refresh");if(btn){btn.disabled=true;btn.textContent="Loading..."}
+notes=[];
+try{
+const res=await fetch(API_URL+"?action=list",{cache:"no-store"});
+const data=await res.json();
+if(!data||!data.ok)throw new Error((data&&data.error)||"Server returned an error.");
+R={};
+(data.results||[]).forEach(o=>{
+if(!o||!o.profile||!o.profile.roll||!o.profile.div){notes.push("Skipped a malformed record from the sheet.");return}
+const id=String(o.profile.roll).toUpperCase()+"|"+o.profile.div;
+R[id]={o,ok:true,name:"live"}});
+computeDuplicates();
+$("#fsum").dataset.loadedAt=new Date().toLocaleTimeString();
+}catch(err){notes.push("Could not load submissions: "+(err.message||String(err))+". Check your internet connection and click Refresh.")}
+loading=false;if(btn){btn.disabled=false;btn.textContent="Refresh now"}
+drawF()}
+$("#refresh").onclick=loadLive;
+function fingerprint(key,u){if(!u)return null;try{const x=new URL(u);
+if(key==="figma"){const m=x.pathname.match(/\/(file|design|proto)\/([a-zA-Z0-9]+)/);return m?m[2]:x.pathname}
+if(key==="canva"){const m=x.pathname.match(/\/design\/([a-zA-Z0-9_-]+)/);return m?m[1]:x.pathname}
+if(key==="miro"){const m=x.pathname.match(/\/board\/([^/]+)/);return m?m[1]:x.pathname}
+if(key==="penpot"){const m=(x.hash||"").match(/\/view\/([a-zA-Z0-9-]+)/)||x.pathname.match(/\/view\/([a-zA-Z0-9-]+)/);return m?m[1]:(x.hash||x.pathname)}
+return x.pathname||u}catch(e){return u}}
+let dupMap={};
+function computeDuplicates(){
+const seen={};
+Object.entries(R).forEach(([id,r])=>{
+LINKS.forEach(l=>{const fp=fingerprint(l[0],r.o.links&&r.o.links[l[0]]);if(!fp)return;const k=l[0]+":"+fp;(seen[k]=seen[k]||[]).push(id)});
+if(r.o.repoCheck&&r.o.repoCheck.ok&&r.o.repoCheck.owner&&r.o.repoCheck.repo){const k="github:"+r.o.repoCheck.owner.toLowerCase()+"/"+r.o.repoCheck.repo.toLowerCase();(seen[k]=seen[k]||[]).push(id)}
+});
+dupMap={};
+Object.entries(seen).forEach(([k,ids])=>{if(ids.length>1){const tool=k.split(":")[0];ids.forEach(id=>{(dupMap[id]=dupMap[id]||[]).push({tool,others:ids.filter(x=>x!==id).map(o=>R[o]?R[o].o.profile.roll:o)})})}})}
+const RUB=["research","visual","proto","access"];
+function total(m){return RUB.reduce((s,k)=>s+(m&&m[k]!==""&&m[k]!=null?Number(m[k]):0),0)}
+function hasAny(m){return m&&RUB.some(k=>m[k]!==""&&m[k]!=null)}
+function drawF(){const div=$("#fdiv").value,q=$("#fq").value.toLowerCase(),flaggedOnly=$("#fflag").checked;
+const list=Object.entries(R).filter(([id,r])=>(!div||r.o.profile.div===div)&&(!q||(r.o.profile.name+" "+r.o.profile.roll).toLowerCase().includes(q))&&(!flaggedOnly||dupMap[id])).sort((a,b)=>a[0].localeCompare(b[0]));
+const all=Object.keys(R),marked=all.filter(i=>hasAny(M[i])),avg=marked.length?(marked.reduce((s,i)=>s+total(M[i]),0)/marked.length).toFixed(2):"-",flagCount=Object.keys(dupMap).length;
+$("#fsum").textContent="Loaded: "+all.length+" | Shown: "+list.length+" | Marked: "+marked.length+" | Average: "+avg+" /10 | \u26a0\ufe0f Flagged (shared links): "+flagCount;
+$("#fnotes").innerHTML=notes.map(esc).join("<br>");
+$("#fb").innerHTML=list.length?list.map(([id,r])=>{const p=r.o.profile,m=M[id]||{};
+const cell=k=>`<input type="number" min="0" max="2.5" step="0.5" class="mk" data-k="${k}" value="${esc(m[k]==null?"":m[k])}" aria-label="${k} for ${esc(p.roll)}" style="width:62px">`;
+const flags=dupMap[id];
+const flagRow=flags?`<tr><td colspan="11" style="background:#fdf0ee;color:var(--bad);font-weight:600">\u26a0\ufe0f Same link as another student: `+flags.map(f=>esc(f.tool)+" shared with "+esc(f.others.join(", "))).join(" | ")+`</td></tr>`:"";
+return`${flagRow}<tr data-id="${esc(id)}" style="${flags?"background:#fff8f7":""}"><td>${esc(p.roll)}${flags?" \u26a0\ufe0f":""}</td><td>${esc(p.name)}</td><td>${esc(p.div)}</td><td>${esc(p.project)}</td>
+<td><span class="badge ${r.ok?"":"w"}">${r.ok?"Verified":"File edited"}</span></td>
+<td>${cell("research")}</td><td>${cell("visual")}</td><td>${cell("proto")}</td><td>${cell("access")}</td>
+<td><b class="tot">${total(m)}</b> /10</td>
+<td><input class="rm" value="${esc(m.r||"")}" aria-label="Remarks for ${esc(p.roll)}"></td>
+<td><button class="s vw">Details</button></td></tr>
+<tr hidden><td colspan="11">${detail(r.o)}</td></tr>`}).join(""):`<tr><td colspan="11">No submissions yet.</td></tr>`}
+function embedUrl(key,u){
+if(key==="figma")return "https://www.figma.com/embed?embed_host=share&url="+encodeURIComponent(u);
+if(key==="miro")return u.replace("/app/board/","/app/live-embed/");
+if(key==="canva")return u+(u.includes("?")?"&":"?")+"embed";
+return u}
+function detail(o){
+const previews=LINKS.map(l=>{const u=safeUrl(o.links[l[0]]);
+if(!u)return `<div><b>${esc(l[1])}</b>: invalid link</div>`;
+const eu=embedUrl(l[0],u);
+return `<div style="margin:10px 0"><b>${esc(l[1])}</b><br>
+<iframe src="${esc(eu)}" style="width:100%;max-width:960px;height:540px;border:1px solid #b9c3cf;border-radius:6px" allow="fullscreen" allowfullscreen loading="lazy"></iframe><br>
+<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">Open full screen in a new tab \u2197</a>
+<small>If nothing loads above, the file's sharing settings may block embedding &ndash; use the link instead.</small></div>`}).join("");
+let gh="Not provided";
+if(o.repoCheck){const rc=o.repoCheck;
+if(rc.ok){const perm="https://github.com/"+esc(rc.owner)+"/"+esc(rc.repo)+"/tree/"+esc(rc.sha);
+const req=Object.entries(rc.required||{}).map(([k,v])=>(v?"\u2705":"\u26a0\ufe0f")+" "+esc(k)).join(", ");
+gh=`<a href="${perm}" target="_blank" rel="noopener noreferrer">Open repo at verified commit ${esc(rc.sha.slice(0,7))}</a><br>Checked: ${esc(new Date(rc.checkedAt).toLocaleString())}<br>${req}`}
+else gh="Not verified &ndash; "+esc(rc.reason)+(rc.repoUrl?` (<a href="${esc(rc.repoUrl)}" target="_blank" rel="noopener noreferrer">open link</a>)`:"")}
+const log=(o.log||[]).map(r=>"<tr>"+r.map(c=>"<td>"+esc(c)+"</td>").join("")+"</tr>").join("");
+const logTbl=log?`<table style="margin-top:4px"><thead><tr><th>Tool</th><th>Prompt</th><th>AI output</th><th>Edit</th><th>Reason</th></tr></thead><tbody>${log}</tbody></table>`:"<i>No Prompt Log rows submitted.</i>";
+return`<div><b>Submitted</b> ${esc(new Date(o.submittedAt).toLocaleString())} &nbsp; | &nbsp; <b>GitHub backup:</b> ${gh}</div>
+<h3 style="margin:10px 0 0;color:var(--b)">Live design previews</h3>${previews}
+<p><b>AI declaration:</b> ${esc(o.declaration||"(none)")}</p>
+<p><b>Prompt Log</b> (${(o.log||[]).length} rows)</p>${logTbl}`}
+$("#fb").addEventListener("input",e=>{const tr=e.target.closest("tr[data-id]");if(!tr)return;const id=tr.dataset.id;M[id]=M[id]||{r:""};
+if(e.target.classList.contains("mk")){const k=e.target.dataset.k,v=e.target.value,n=Number(v);const bad=v!==""&&(isNaN(n)||n<0||n>2.5);e.target.classList.toggle("bad",bad);if(!bad){M[id][k]=v;tr.querySelector(".tot").textContent=total(M[id])}}
+if(e.target.classList.contains("rm"))M[id].r=e.target.value;ls.set("ljku_marks",JSON.stringify(M))});
+$("#fb").addEventListener("click",e=>{if(e.target.classList.contains("vw")){const n=e.target.closest("tr").nextElementSibling;n.hidden=!n.hidden}});
+["fdiv","fq","fflag"].forEach(i=>$("#"+i).addEventListener("input",drawF));
+const cs=v=>{v=String(v==null?"":v);if(/^[=+\-@]/.test(v))v="'"+v;return'"'+v.replace(/"/g,'""')+'"'};
+$("#csv").onclick=()=>{const rows=[["Division","Roll","Name","Project","Status","Flagged (shared links)","GitHub","Submitted","Research /2.5","Visual /2.5","Prototype /2.5","Accessibility /2.5","Total /10","Remarks"]];
+Object.entries(R).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([id,r])=>{const p=r.o.profile,m=M[id]||{},rc=r.o.repoCheck,gh=rc?(rc.ok?"Verified "+rc.sha.slice(0,7):"Not verified: "+rc.reason):"Not provided",flag=dupMap[id]?dupMap[id].map(f=>f.tool+" with "+f.others.join(",")).join("; "):"";
+rows.push([p.div,p.roll,p.name,p.project,r.ok?"Verified":"File edited",flag,gh,r.o.submittedAt,m.research==null?"":m.research,m.visual==null?"":m.visual,m.proto==null?"":m.proto,m.access==null?"":m.access,hasAny(m)?total(m):"",m.r||""])});
+try{const a=document.createElement("a"),u=URL.createObjectURL(new Blob(["\ufeff"+rows.map(r=>r.map(cs).join(",")).join("\r\n")],{type:"text/csv"}));a.href=u;a.download="IMCA501P_marks.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(x){alert("Export failed in this browser.")}};
+$("#clr").onclick=()=>{if(confirm("Clear all rubric marks and remarks saved in THIS browser? (Submissions themselves stay safe in the Google Sheet.)")){M={};ls.del("ljku_marks");drawF()}};
+
+/* ---------- encrypted results publishing ---------- */
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+async function deriveKey(pass,salt){const enc=new TextEncoder();const km=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);
+return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:100000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["encrypt"])}
+$("#pub").onclick=async()=>{
+if(!crypto.subtle){alert("This feature needs a secure page (https:// or localhost). Host the portal on GitHub Pages first.");return}
+const rows=Object.entries(R);if(!rows.length){alert("Import submissions first.");return}
+const ready=rows.filter(([id])=>hasAny(M[id]));
+if(!ready.length){alert("Enter at least one rubric score before publishing.");return}
+$("#pubmsg").textContent="Encrypting "+ready.length+" result(s)...";
+const out=[];
+for(const[id,r]of ready){const p=r.o.profile,m=M[id],salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+const pass=p.roll.toUpperCase()+"|"+r.o.hash;
+try{const key=await deriveKey(pass,salt);
+const enc=new TextEncoder().encode(JSON.stringify({name:p.name,div:p.div,project:p.project,research:m.research||0,visual:m.visual||0,proto:m.proto||0,access:m.access||0,marks:total(m),remarks:m.r||"",publishedAt:new Date().toISOString()}));
+const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,enc);
+out.push({roll:p.roll.toUpperCase(),div:p.div,salt:b64(salt),iv:b64(iv),data:b64(ct)})}
+catch(e){notes.push(p.roll+": could not be encrypted, skipped.")}}
+const payload={course:"IMCA-501P",v:1,generatedAt:new Date().toISOString(),results:out};
+try{const a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:"application/json"}));a.href=u;a.download="results.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(e){alert("Download failed.")}
+$("#pubmsg").textContent="Published "+out.length+" result(s) to results.json. Upload this file next to results-lookup.html on GitHub Pages, in the same folder.";drawF()};
+
+/* ---------- tabs ---------- */
+function tab(f){$("#student").hidden=f;$("#faculty").hidden=!f;$("#tS").classList.toggle("on",!f);$("#tF").classList.toggle("on",f);if(f)loadLive()}
+$("#tS").onclick=()=>tab(false);$("#tF").onclick=()=>tab(true);
+restore();drawF();
+</script></body></html>
